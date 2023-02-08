@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: node-ares101-local-pv-zk3510
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-zk3510
+  local:
+    path: /home/datadir/k8s-local-pv-master-3510
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - "ares101"
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: node-ares102-local-pv-zk3510
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-zk3510
+  local:
+    path: /home/datadir/k8s-local-pv-master-3510
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - "ares102"
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: node-ares103-local-pv-zk3510
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage-zk3510
+  local:
+    path: /home/datadir/k8s-local-pv-master-3510
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - "ares103"

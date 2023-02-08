@@ -1,0 +1,171 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zk-svc-3510
+  labels:
+    app: zk-svc-3510
+spec:
+  ports:
+  - port: 2888
+    name: server
+  - port: 3888
+    name: leader-election
+  clusterIP: None
+  selector:
+    app: zk-3510
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zk-cm-3510
+data:
+  jvm.heap: "128m"
+  tick: "2000"
+  init: "40"
+  sync: "20"
+  client.cnxns: "60"
+  snap.retain: "3"
+  purge.interval: "6"
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-pdb-3510
+spec:
+  selector:
+    matchLabels:
+      app: zk-3510
+  minAvailable: 2
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zk-3510
+spec:
+  serviceName: zk-svc-3510
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zk-3510
+  template:
+    metadata:
+      labels:
+        app: zk-3510
+    spec:
+      tolerations:
+        - key: "env"
+          operator: "Equal"
+          value: "dev"
+          effect: "NoSchedule"
+        - key: "env"
+          operator: "Equal"
+          value: "dev"
+          effect: "NoExecute"
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values: 
+                    - zk-3510
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: k8szk-3510
+        imagePullPolicy: IfNotPresent
+        image: gcr.io/google_samples/k8szk:v3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+        ports:
+        - containerPort: 2181
+          name: client
+        - containerPort: 2888
+          name: server
+        - containerPort: 3888
+          name: leader-election
+        env:
+        - name : ZK_REPLICAS
+          value: "3"
+        - name : ZK_HEAP_SIZE
+          valueFrom:
+            configMapKeyRef:
+                name: zk-cm-3510
+                key: jvm.heap
+        - name : ZK_TICK_TIME
+          valueFrom:
+            configMapKeyRef:
+                name: zk-cm-3510
+                key: tick
+        - name : ZK_INIT_LIMIT
+          valueFrom:
+            configMapKeyRef:
+                name: zk-cm-3510
+                key: init
+        - name : ZK_SYNC_LIMIT
+          valueFrom:
+            configMapKeyRef:
+                name: zk-cm-3510
+                key: tick
+        - name : ZK_MAX_CLIENT_CNXNS
+          valueFrom:
+            configMapKeyRef:
+                name: zk-cm-3510
+                key: client.cnxns
+        - name: ZK_SNAP_RETAIN_COUNT
+          valueFrom:
+            configMapKeyRef:
+                name: zk-cm-3510
+                key: snap.retain
+        - name: ZK_PURGE_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+                name: zk-cm-3510
+                key: purge.interval
+        - name: ZK_CLIENT_PORT
+          value: "2181"
+        - name: ZK_SERVER_PORT
+          value: "2888"
+        - name: ZK_ELECTION_PORT
+          value: "3888"
+        command:
+        - sh
+        - -c
+        - zkGenConfig.sh && zkServer.sh start-foreground              |
+        # 这里使用了探针来保证三个节点都能正常启动
+        readinessProbe:
+          exec:
+            command:
+            - "zkOk.sh"
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - "zkOk.sh"
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: master-local-claim
+          mountPath: /var/lib/zookeeper
+          subPath: default-zookeeper-3510
+
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+  volumeClaimTemplates:
+  - metadata:
+      name: master-local-claim
+    spec:
+      storageClassName: local-storage-zk3510
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
